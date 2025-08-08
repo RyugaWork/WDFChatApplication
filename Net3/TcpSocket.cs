@@ -1,7 +1,8 @@
-﻿using System.Net.Sockets;
+﻿using Net3.Packets;
+using System.IO;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
-
-using Net3.Packets;
 namespace Net3;
 
 /// <summary>
@@ -17,7 +18,11 @@ public class TcpSocket {
     /// <summary>
     /// Default constructor - initializes LastPing to current time.
     /// </summary>
-    public TcpSocket() => this.LastPing = DateTime.Now;
+    public TcpSocket() {
+        this.LastPing = DateTime.Now;
+
+        this.Tcpsocket = new TcpClient();
+    }
 
     /// <summary>
     /// Constructor that initializes with an existing TcpClient.
@@ -28,23 +33,68 @@ public class TcpSocket {
         this.LastPing = DateTime.Now;
 
         this.Tcpsocket = socket;
-        this.Tcpstream = socket.GetStream();
+
+        InitNetworkStream();
     }
 
     /// <summary>
     /// Initializes the network stream by setting up the reader and writer with UTF-8 encoding.
     /// </summary>
     public void InitNetworkStream() {
+        this.Tcpstream = Tcpsocket!.GetStream();
+
         try {
             // Create a StreamReader for reading from the TCP stream
             this.reader = new StreamReader(Tcpstream!, Encoding.UTF8);
 
             // Create a StreamWriter for writing to the TCP stream (auto-flush enabled)
-            this.writer = new StreamWriter(Tcpstream!, Encoding.UTF8) { AutoFlush = true };
+            var utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+            writer = new StreamWriter(Tcpstream!, utf8NoBom) { AutoFlush = true };
         }
         catch (Exception ex) {
             throw new Exception(ex.ToString());
         }
+    }
+
+    // Gets the local machine's IPv4 address.
+    public static string LocalIPAddress => GetLocalIPAddress();
+
+    // Retrieves the first available IPv4 address of the local machine.
+    // Throws an exception if no IPv4 address is found.ns>
+    private static string GetLocalIPAddress() {
+        var host = Dns.GetHostEntry(Dns.GetHostName());
+        foreach (var ip in host.AddressList) {
+            if (ip.AddressFamily == AddressFamily.InterNetwork) {
+                return ip.ToString(); 
+            }
+        }
+        throw new Exception("No network adapters with an IPv4 address found.");
+    }
+
+    // Connects to the local IP on the specified port.
+    public void Connect(int port) {
+        try {
+            this.Connect(LocalIPAddress, port);
+        }
+        catch (Exception ex) {
+            throw new Exception(ex.ToString());
+        }
+    }
+
+    // Connects to a remote host using a given IP and port.
+    // Initializes the network stream upon success.
+    public void Connect(string IP, int port) {
+        if (this.IsConnected)
+            return;
+
+        try {
+            Tcpsocket!.Connect(IP, port);
+        }
+        catch (Exception ex) {
+            throw new Exception(ex.ToString());
+        }
+
+        InitNetworkStream();
     }
 
     /// <summary>
@@ -52,7 +102,9 @@ public class TcpSocket {
     /// based on the time of the last received ping.
     /// </summary>
     public int PingTimeoutSeconds { get; set; } = 120;
+    public int PingTimeoutDelay{ get; set; } = 1; //default 60000
     private DateTime? LastPing { get; set; } = null;
+    public void UpdateLastPing() => LastPing = DateTime.Now;
     public bool IsAlive => (DateTime.Now - LastPing!.Value).TotalSeconds <= PingTimeoutSeconds;
 
     // Checks if the TCP socket is connected.

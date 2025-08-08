@@ -6,7 +6,7 @@ public class Packet {
     public string? type { get; set; } = null;
 
     // Optional timestamp indicating when the packet was created or sent
-    public DateTime? timestamp { get; set; } = null;
+    public DateTime? timestamp { get; set; } = DateTime.Now;
 
     /// <summary>
     /// Default constructor.
@@ -26,6 +26,7 @@ public class Packet {
     // returns <A Packet object or null if deserialization fails.>
     public static Packet? Deserialize(string json) {
         using var doc = JsonDocument.Parse(json);
+
         if (!doc.RootElement.TryGetProperty("type", out var typeProp))
             return null;
 
@@ -34,7 +35,7 @@ public class Packet {
             "Connect" => JsonSerializer.Deserialize<Packet>(json),
             "Ping" => JsonSerializer.Deserialize<Packet>(json),
             "Message" => JsonSerializer.Deserialize<Tcp_Mess_Pck>(json),
-            _ => null
+            _ => JsonSerializer.Deserialize<Packet>(json)
         };
     }
 }
