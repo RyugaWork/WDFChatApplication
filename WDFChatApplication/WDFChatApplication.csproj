@@ -10,6 +10,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Net3\Net3.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
     </None>
