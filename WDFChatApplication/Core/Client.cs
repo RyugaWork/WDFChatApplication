@@ -33,6 +33,7 @@ public class Client {
         this.socket!.InitNetworkStream();
 
         await this.socket!.SendAsync(new Packet("Connect"));
+        await this.socket!.SendAsync(new Packet("LoadMsg"));
     }
 
     public async Task ConnectAsync() {
@@ -90,8 +91,12 @@ public class Client {
 
     public void Disconnect() {
         cts.Cancel();
-        this.socket!.Disconnect();
-        this.socket = null;
+        try {
+            this.socket?.Disconnect();
+            this.socket = null;
+        }
+        catch { }
+        
     }
 
     ~Client() {

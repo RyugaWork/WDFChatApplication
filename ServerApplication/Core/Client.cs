@@ -16,6 +16,7 @@ public class Client {
 
     public Action<Client>? OnCloseConnectionAction { get; set; } = null;
     public event Func<Message, Task>? OnMessageReceivedAction;
+    public event Func<Task<List<Tcp_Mess_Pck>>>? OnLoadMessageAction;
 
     public Client(TcpClient socket) {
         this.socket = new TcpSocket(socket);
@@ -44,13 +45,22 @@ public class Client {
     public async Task HandshakeAsync(CancellationToken token) {
         while (!token.IsCancellationRequested && this.socket!.IsConnected) {
             var packet = await this.socket.RecvAsync();
-            Console.WriteLine($"Recv >> {packet!.Serialize()}");
 
             if (packet != null) {
+                Console.WriteLine($"Recv >> {packet!.Serialize()}");
                 switch (packet.type) {
                     case "Connect": {
-
                         await this.socket.SendAsync(new Tcp_Mess_Pck { sender = "Server", text = "Hello" });
+
+                        break;
+                    }
+
+                    case "LoadMsg": {
+                        var messages = await OnLoadMessageAction!.Invoke();
+
+                        foreach (var msg in messages) {
+                            await this.SendAsync(msg);
+                        }
 
                         break;
                     }
@@ -60,6 +70,7 @@ public class Client {
                         var message = new Message {
                             sender = msg!.sender,
                             text = msg!.text,
+                            timestamp = msg!.timestamp,
                         };
                         await this.OnMessageReceivedAction!.Invoke(message);
 

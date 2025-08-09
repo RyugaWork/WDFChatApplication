@@ -41,6 +41,7 @@ public class TcpSocket {
     /// Initializes the network stream by setting up the reader and writer with UTF-8 encoding.
     /// </summary>
     public void InitNetworkStream() {
+        //this.Tcpsocket!.NoDelay = true;
         this.Tcpstream = Tcpsocket!.GetStream();
 
         try {
@@ -127,6 +128,7 @@ public class TcpSocket {
         try {
             await Tcpstream.WriteAsync(data, 0, data.Length);
             await Tcpstream.FlushAsync();
+            await Task.Delay(1);
         }
         catch (Exception ex) {
             throw new Exception(ex.ToString());

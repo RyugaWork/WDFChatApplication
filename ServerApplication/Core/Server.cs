@@ -1,4 +1,5 @@
-﻿using Net3;
+﻿using Microsoft.EntityFrameworkCore;
+using Net3;
 using Net3.Model;
 using Net3.Packets;
 using ServerApplication.SQL;
@@ -24,7 +25,10 @@ public class Server {
         this.Clients = new List<Client>();
     }
 
-    public void Start() {
+    public async Task Start() {
+        using (var repo = new ChatRepository(new ChatDbContext()))
+            await repo.Clear();
+
         _ = Task.Run(() => Listener(cts.Token));
     }
 
@@ -35,6 +39,7 @@ public class Server {
             var client = new Client(Tcplistener.AcceptTcpClient());
             client.OnCloseConnectionAction += RemoveClient;
             client.OnMessageReceivedAction += OnMessageReceivedAction;
+            client.OnLoadMessageAction += OnLoadMessageAction;
 
             Console.WriteLine("Client Connected!");
 
@@ -43,17 +48,32 @@ public class Server {
     }
 
     private async Task OnMessageReceivedAction(Message msgprk) {
-        Console.WriteLine(".C.");
         using (var repo = new ChatRepository(new ChatDbContext()))
-        await repo.AddMessageAsync(msgprk);
-        Console.WriteLine("...");
+        await repo.AddMessageAsync(new Message {
+            Id = msgprk.Id,
+            sender = msgprk.sender,
+            text = msgprk.text,
+            timestamp = msgprk.timestamp,
+        });
 
         foreach (var Client in Clients!.ToList()) {
             await Client.SendAsync(new Tcp_Mess_Pck {
                 sender = msgprk.sender,
                 text = msgprk.text,
+                timestamp = msgprk.timestamp,
             });
         }
+    }
+
+    private async Task<List<Tcp_Mess_Pck>> OnLoadMessageAction() {
+        using var db = new ChatDbContext();
+        return await db.Messages
+            .OrderBy(m => m.timestamp)
+            .Select(m => new Tcp_Mess_Pck {
+                sender = m.sender,
+                text = m.text,
+                timestamp = m.timestamp
+            }).Take(10).ToListAsync();
     }
 
     private void RemoveClient(Client client) {

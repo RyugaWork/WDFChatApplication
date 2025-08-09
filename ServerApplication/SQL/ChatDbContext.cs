@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Logging;
 using Net3.Model;
+using System.Threading.Tasks;
 
 namespace ServerApplication.SQL;
 
@@ -27,9 +28,12 @@ public class ChatRepository : IDisposable {
 
     public async Task AddMessageAsync(Message message) {
         await _context.Messages.AddAsync(message);
-        Console.WriteLine(".E.");
         await _context.SaveChangesAsync();
-        Console.WriteLine(".F.");
+    }
+
+    public async Task Clear() {
+        _context.RemoveRange(_context.Messages);
+        await _context.SaveChangesAsync();
     }
 
     public void Dispose() {

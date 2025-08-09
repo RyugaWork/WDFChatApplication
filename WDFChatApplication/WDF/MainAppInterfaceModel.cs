@@ -3,6 +3,7 @@ using Net3.Packets;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Input;
+using System.Windows.Interop;
 using WDFChatApplication.Core;
 
 namespace WDFChatApplication.WDF;
@@ -43,19 +44,20 @@ public class MainAppInterfaceModel : INotifyPropertyChanged {
     }
 
     public async Task Connect() {
-        if (client != null) {
-            if (client!.IsConnected) {
-                return;
-            }
+        if (client?.IsConnected == true)
             return;
-        }
 
         client = new Client();
-        client.OnMessageReceived += AddMessage;
+        client.OnMessageReceived += async (msg) => await AddMessage(msg);
+
+        //! Why client not recv hello packet after reconnect?
+        Messages.Clear();
+
         await client.ConnectAsync();
     }
 
     public void Disconnect() {
+
         client?.Disconnect();
         client = null;
     }
@@ -72,9 +74,8 @@ public class MainAppInterfaceModel : INotifyPropertyChanged {
         Message = "";
     }
 
-    public void AddMessage(Message msg) {
-
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+    public async Task AddMessage(Message msg) {
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
         {
             Messages.Add(msg);
         });
