@@ -47,6 +47,13 @@ public class Server {
         using (var repo = new ChatRepository(new ChatDbContext()))
         await repo.AddMessageAsync(msgprk);
         Console.WriteLine("...");
+
+        foreach (var Client in Clients!.ToList()) {
+            await Client.SendAsync(new Tcp_Mess_Pck {
+                sender = msgprk.sender,
+                text = msgprk.text,
+            });
+        }
     }
 
     private void RemoveClient(Client client) {

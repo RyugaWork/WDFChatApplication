@@ -4,6 +4,6 @@ public class Message {
     public string? sender { get; set; } = null;
     public string? to { get; set; } = null;
     public string? text { get; set; } = null;
-    public DateTime? Timestamp { get; set; }
+    public DateTime? timestamp { get; set; }
 }
 
