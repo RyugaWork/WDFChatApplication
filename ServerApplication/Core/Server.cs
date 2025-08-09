@@ -1,5 +1,7 @@
 ﻿using Net3;
+using Net3.Model;
 using Net3.Packets;
+using ServerApplication.SQL;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -32,10 +34,25 @@ public class Server {
         while (!token.IsCancellationRequested && Tcplistener != null) {
             var client = new Client(Tcplistener.AcceptTcpClient());
             client.OnCloseConnectionAction += RemoveClient;
+            client.OnMessageReceivedAction += OnMessageReceivedAction;
 
             Console.WriteLine("Client Connected!");
 
             Clients!.Add(client);
+        }
+    }
+
+    private async Task OnMessageReceivedAction(Message msgprk) {
+        Console.WriteLine(".C.");
+        using (var repo = new ChatRepository(new ChatDbContext()))
+        await repo.AddMessageAsync(msgprk);
+        Console.WriteLine("...");
+
+        foreach (var Client in Clients!.ToList()) {
+            await Client.SendAsync(new Tcp_Mess_Pck {
+                sender = msgprk.sender,
+                text = msgprk.text,
+            });
         }
     }
 

@@ -1,4 +1,5 @@
 ﻿using Net3;
+using Net3.Model;
 using Net3.Packets;
 using System;
 using System.Collections.Generic;
@@ -14,8 +15,18 @@ namespace WDFChatApplication.Core;
 public class Client {
     private TcpSocket? socket { get; set; } = null;
     private CancellationTokenSource cts = new();
+
+    public event Action<Message>? OnMessageReceived;
+
     public Client() {
         this.socket = new TcpSocket();
+    }
+
+    public bool IsConnected => this.socket!.IsConnected;
+
+    public async Task SendAsync(Packet packet) {
+        Console.WriteLine($"Send >> {packet!.Serialize()}");
+        await this.socket!.SendAsync(packet);
     }
 
     private async Task OnConnect() {
@@ -56,7 +67,11 @@ public class Client {
                 switch (packet.type) {
                     case "Message": {
                         var msg = packet as Tcp_Mess_Pck;
-                        Console.WriteLine(msg!.Serialize());
+                        OnMessageReceived!.Invoke(new Message {
+                            text = msg!.text,
+                            sender = msg!.sender,
+                            timestamp = msg!.timestamp
+                        });
                         break;
                     }
 
