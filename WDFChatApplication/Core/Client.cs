@@ -18,6 +18,11 @@ public class Client {
         this.socket = new TcpSocket();
     }
 
+    public async Task SendAsync(Packet packet) {
+        Console.WriteLine($"Send >> {packet!.Serialize()}");
+        await this.socket!.SendAsync(packet);
+    }
+
     private async Task OnConnect() {
         this.socket!.InitNetworkStream();
 

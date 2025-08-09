@@ -102,7 +102,7 @@ public class TcpSocket {
     /// based on the time of the last received ping.
     /// </summary>
     public int PingTimeoutSeconds { get; set; } = 120;
-    public int PingTimeoutDelay{ get; set; } = 1; //default 60000
+    public int PingTimeoutDelay{ get; set; } = 60000; //default 60000
     private DateTime? LastPing { get; set; } = null;
     public void UpdateLastPing() => LastPing = DateTime.Now;
     public bool IsAlive => (DateTime.Now - LastPing!.Value).TotalSeconds <= PingTimeoutSeconds;
