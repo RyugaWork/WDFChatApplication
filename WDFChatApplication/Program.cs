@@ -11,6 +11,10 @@ class Program {
     static async Task Main(string[] args) {
         var client = new Client();
         await client.ConnectAsync(); // await the async method
+        await client.SendAsync(new Net3.Packets.Tcp_Mess_Pck {
+            sender = "Client",
+            text = "F",
+        });
 
         while (true) { }
 

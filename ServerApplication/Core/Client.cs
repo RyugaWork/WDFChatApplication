@@ -1,6 +1,6 @@
 ﻿using Net3;
 using Net3.Packets;
-using Net3.API;
+using Net3.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +14,8 @@ public class Client {
     private TcpSocket? socket { get; set; } = null;
     private CancellationTokenSource cts = new();
 
-    public Action<Client>? OnCloseConnectionAction { get; set; } = null;
+    public event Action<Client>? OnCloseConnectionAction;
+    public event Func<Message, Task>? OnMessageReceivedAction;
 
     public Client(TcpClient socket) {
         this.socket = new TcpSocket(socket);
@@ -22,6 +23,11 @@ public class Client {
 
         _ = Task.Run(() => HandshakeAsync(cts.Token));
         _ = Task.Run(() => TimeOutCheckAsync(cts.Token));
+    }
+
+    public async Task SendAsync(Packet packet) {
+        Console.WriteLine($"Send >> {packet!.Serialize()}");
+        await this.socket!.SendAsync(packet);
     }
 
     private async Task TimeOutCheckAsync(CancellationToken token) {
@@ -51,8 +57,15 @@ public class Client {
 
                     case "Message": {
                         var msg = packet as Tcp_Mess_Pck;
-                        Console.WriteLine(msg!.Serialize());
-                        await this.socket.SendAsync(packet);
+                        var message = new Message {
+                            //ConversationId = "",
+                            From = msg!.sender,
+                            To = "Server",
+                            Sender = new User { Id = "", DisplayName = msg!.sender },
+                            Receiver = new User { Id = "", DisplayName = "Server" },
+                            Text = msg!.text,
+                        };
+                        await this.OnMessageReceivedAction!.Invoke(message);
 
                         break;
                     }
