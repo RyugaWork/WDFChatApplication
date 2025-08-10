@@ -25,6 +25,61 @@ public class TcpSocket : IDisposable {
         this.Tcpsocket = new TcpClient();
     }
 
+    // Scans LAN for devices running the server on a given port
+    public async Task<string?> AutoConnectAsync(int port, int timeoutMs = 200) {
+        string localIP = LocalIPAddress;
+        string subnet = localIP.Substring(0, localIP.LastIndexOf('.') + 1);
+
+        var tasks = new List<Task<string?>>();
+
+        for (int i = 1; i < 255; i++) {
+            string ip = subnet + i;
+            //if (ip == localIP) // skip self
+            //    continue;
+
+            tasks.Add(Task.Run(async () =>
+            {
+                if (await IsDeviceAlive(ip, timeoutMs) && await CanConnect(ip, port, timeoutMs))
+                    return ip;
+                return null; 
+            }));
+        }
+
+        foreach (var t in tasks) {
+            var ip = await t;
+            if (ip != null) {
+                try {
+                    this.Connect(ip, port);
+                    return ip;
+                }
+                catch {
+                    // If connect fails, try next
+                }
+            }
+        }
+        return null;
+    }
+
+    private async Task<bool> IsDeviceAlive(string ip, int timeoutMs) {
+        try {
+            using var ping = new System.Net.NetworkInformation.Ping();
+            var reply = await ping.SendPingAsync(ip, timeoutMs);
+            return reply.Status == System.Net.NetworkInformation.IPStatus.Success;
+        }
+        catch { return false; }
+    }
+
+    private async Task<bool> CanConnect(string ip, int port, int timeoutMs) {
+        try {
+            using var client = new TcpClient();
+            var connectTask = client.ConnectAsync(ip, port);
+            var delayTask = Task.Delay(timeoutMs);
+            var finishedTask = await Task.WhenAny(connectTask, delayTask);
+            return finishedTask == connectTask && client.Connected;
+        }
+        catch { return false; }
+    }
+
     /// <summary>
     /// Constructor that initializes with an existing TcpClient.
     /// Sets up the network stream and updates LastPing.

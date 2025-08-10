@@ -41,13 +41,23 @@ public class Client {
         if (this.socket!.IsConnected)
             return;
 
-        this.socket.Connect(5000);
-        Console.WriteLine($"Client Connected to {TcpSocket.LocalIPAddress}:{5000}");
+        
 
-        await OnConnect();
+        string? serverIP = await this.socket.AutoConnectAsync(5000);
+        Console.WriteLine($"Client AutoConnectAsync to {serverIP}:{5000}");
 
-        _ = Task.Run(() => HandshakeAsync(cts.Token));
-        _ = Task.Run(() => TimeOutCheckAsync(cts.Token));
+        if (serverIP != null) {
+            await OnConnect();
+
+            _ = Task.Run(() => HandshakeAsync(cts.Token));
+            _ = Task.Run(() => TimeOutCheckAsync(cts.Token));
+            await OnConnect(); // runs only after connect succeeds
+        }
+        else {
+            Console.WriteLine("❌ No server found.");
+        }
+
+        
     }
 
     private async Task TimeOutCheckAsync(CancellationToken token) {
