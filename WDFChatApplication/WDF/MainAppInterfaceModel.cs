@@ -8,7 +8,7 @@ using WDFChatApplication.Core;
 
 namespace WDFChatApplication.WDF;
 
-public class MainAppInterfaceModel : INotifyPropertyChanged {
+public class MainAppInterfaceModel : INotifyPropertyChanged, IDisposable {
     public event PropertyChangedEventHandler? PropertyChanged;
     void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new(name));
 
@@ -51,6 +51,7 @@ public class MainAppInterfaceModel : INotifyPropertyChanged {
         client.OnMessageReceived += async (msg) => await AddMessage(msg);
 
         //! Why client not recv hello packet after reconnect?
+        //? Client sometime not recv hello packet? why?
         Messages.Clear();
 
         await client.ConnectAsync();
@@ -78,6 +79,22 @@ public class MainAppInterfaceModel : INotifyPropertyChanged {
         await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
         {
             Messages.Add(msg);
+
+            // Sort by descending Timestamp
+            var sorted = Messages.OrderBy(m => m.timestamp).ToList();
+            Messages.Clear();
+            foreach (var m in sorted)
+                Messages.Add(m);
         });
+    }
+
+    public void Dispose() {
+        Disconnect();
+        GC.SuppressFinalize(this);
+    }
+
+    ~MainAppInterfaceModel() {
+        Messages.Clear();
+        Disconnect();
     }
 }

@@ -33,6 +33,7 @@ public class Client {
         this.socket!.InitNetworkStream();
 
         await this.socket!.SendAsync(new Packet("Connect"));
+        await Task.Delay(1);
         await this.socket!.SendAsync(new Packet("LoadMsg"));
     }
 

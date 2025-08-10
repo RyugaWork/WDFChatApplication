@@ -60,6 +60,8 @@ public class Client {
 
                         foreach (var msg in messages) {
                             await this.SendAsync(msg);
+                            //! Make a class or medthod that handle sending packet!
+                            await Task.Delay(1); // Add delay await for client to handle the packet
                         }
 
                         break;

@@ -3,12 +3,13 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+
 namespace Net3;
 
 /// <summary>
 /// Represents a TCP socket that handles sending and receiving serialized packets.
 /// </summary>
-public class TcpSocket {
+public class TcpSocket : IDisposable {
     // Underlying TCP socket used for communication
     private TcpClient? Tcpsocket { get; set; } = null;
 
@@ -53,7 +54,7 @@ public class TcpSocket {
             writer = new StreamWriter(Tcpstream!, utf8NoBom) { AutoFlush = true };
         }
         catch (Exception ex) {
-            throw new Exception(ex.ToString());
+            throw new Exception($"NetworkStream unexpected error: {ex}");
         }
     }
 
@@ -78,7 +79,7 @@ public class TcpSocket {
             this.Connect(LocalIPAddress, port);
         }
         catch (Exception ex) {
-            throw new Exception(ex.ToString());
+            throw new Exception($"Connection unexpected error: {ex}");
         }
     }
 
@@ -92,7 +93,7 @@ public class TcpSocket {
             Tcpsocket!.Connect(IP, port);
         }
         catch (Exception ex) {
-            throw new Exception(ex.ToString());
+            throw new Exception($"Connection unexpected error: {ex}");
         }
 
         InitNetworkStream();
@@ -120,7 +121,7 @@ public class TcpSocket {
     //Sends a packet asynchronously over the TCP stream.
     public async Task SendAsync(Packet prk) {
         if (Tcpstream == null)
-            return;
+            throw new Exception("NetworkStream is not initiated");
 
         var packet = prk.Serialize() + "\n";
         var data = Encoding.UTF8.GetBytes(packet);
@@ -128,16 +129,25 @@ public class TcpSocket {
         try {
             await Tcpstream.WriteAsync(data, 0, data.Length);
             await Tcpstream.FlushAsync();
-            await Task.Delay(1);
+        }
+        catch (IOException ioEx) { // Signal disconnect
+            // This happens when the connection is closed/reset
+            Disconnect();
+            throw new Exception($"NetworkStream connection closed: {ioEx}"); 
+        }
+        catch (SocketException sockEx) { // Signal disconnect
+            Disconnect();
+            throw new Exception($"NetworkStream socket error {sockEx}");  
         }
         catch (Exception ex) {
-            throw new Exception(ex.ToString());
+            throw new Exception($"NetworkStream unexpected error: {ex}");
         }
     }
+
     // Receives a packet asynchronously from the TCP stream.
     public async Task<Packet?> RecvAsync() {
         if (Tcpstream == null)
-            return null;
+            throw new Exception("NetworkStream is not initiated");
 
         try {
             using var reader = new StreamReader(Tcpstream, Encoding.UTF8, leaveOpen: true);
@@ -148,8 +158,17 @@ public class TcpSocket {
 
             return Packet.Deserialize(line);
         }
+        catch (IOException ioEx) { // Signal disconnect
+            // This happens when the connection is closed/reset
+            Disconnect();
+            throw new Exception($"NetworkStream connection closed: {ioEx}"); 
+        }
+        catch (SocketException sockEx) { // Signal disconnect
+            Disconnect();
+            throw new Exception($"NetworkStream socket error {sockEx}");  
+        }
         catch (Exception ex) {
-            throw new Exception(ex.ToString());
+            throw new Exception($"NetworkStream unexpected error: {ex}");
         }
     }
 
@@ -157,24 +176,53 @@ public class TcpSocket {
     /// Disconnects the TCP socket and disposes of its resources.
     /// </summary>
     public void Disconnect() {
-        if (Tcpsocket != null && !Tcpsocket.Connected)
-            return;
-
         try {
+            if (Tcpsocket != null) {
+                if (Tcpsocket.Connected) {
+                    try {
+                        Tcpsocket.Client.Shutdown(SocketShutdown.Both);
+                    }
+                    catch { /* ignore shutdown errors */ }
+                }
+
+                Tcpsocket.Close();
+                Tcpsocket.Dispose();
+                Tcpsocket = null;
+            }
+
+            reader?.Dispose();
+            writer?.Dispose();
+
             Tcpstream?.Close();
-            Tcpsocket?.Close();
             Tcpstream?.Dispose();
+            Tcpstream = null;
         }
         catch (Exception ex) {
-            throw new Exception(ex.ToString());
+            throw new Exception($"Disconnect unexpected error: {ex}");
+        }
+    }
+
+    private bool disposed = false; // to detect redundant calls
+    public void Dispose() {
+        Dispose(true);
+        GC.SuppressFinalize(this); // prevent finalizer from running again
+    }
+
+    protected virtual void Dispose(bool disposing) {
+        if (disposed)
+            return;
+        disposed = true;
+
+        if (disposing) {
+            // Dispose managed resources
+            Disconnect();
         }
 
-        Tcpstream = null;
+        // No unmanaged resources directly, so nothing special here
     }
 
     ~TcpSocket() {
-        // Finalizer to ensure the socket is disconnected when the object is destroyed.
-        Disconnect();
+        Dispose(false); // cleanup unmanaged only (but we don't have any here)
     }
 }
 

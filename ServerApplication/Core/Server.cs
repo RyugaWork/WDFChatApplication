@@ -73,7 +73,7 @@ public class Server {
                 sender = m.sender,
                 text = m.text,
                 timestamp = m.timestamp
-            }).Take(10).ToListAsync();
+            }).Take(100).ToListAsync();
     }
 
     private void RemoveClient(Client client) {
