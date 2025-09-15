@@ -41,7 +41,7 @@ public class Client {
         if (this.socket!.IsConnected)
             return;
 
-        this.socket.Connect(5000);
+        this.socket.Connect("192.168.89.21", 5000);
         Console.WriteLine($"Client Connected to {TcpSocket.LocalIPAddress}:{5000}");
 
         await OnConnect();
